@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xml:lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="generator" content="luckyxiang-toHtml · article theme" />
+
+
+
+
+  <title>luckyxiang-docsummer</title>
+
+  <!-- Web fonts: Newsreader (display+body serif) + IBM Plex Sans (UI) + JetBrains Mono (code) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+
+  <link rel="stylesheet" href="C:\Users\GhostCloud\.claude\skills\luckyxiang-mdtohtml\templates\article\theme.css" />
+
+</head>
+<body>
+  <!-- Reading progress bar -->
+  <div id="reading-progress" aria-hidden="true"></div>
+
+
+  <header class="title-block" role="banner">
+
+    <h1 class="title">luckyxiang-docsummer</h1>
+
+
+
+  </header>
+
+  <main role="main">
+
+    <article>
+<blockquote>
+<p>万物皆可总结：PDF、Word、PPT、Markdown……CoD 密度迭代 + CoVe
+事实验证，零幻觉。</p>
+</blockquote>
+<h2 id="这是什么">这是什么</h2>
+<p>一个 Claude Code Skill，专门对文档进行高精度结构化总结。支持
+PDF、Word、PPT、Markdown 等格式，输出 MD + HTML 双格式。</p>
+<p>核心设计理念：<strong>总结的准确性不靠 LLM 的推理能力，靠 prompt
+的结构化约束</strong>。借鉴学术论文中的 Chain-of-Density（密度迭代）和
+Chain-of-Verification（事实验证）框架，通过多轮迭代确保信息完整、通过逐条验证确保内容准确。</p>
+<h2 id="支持的文件格式">支持的文件格式</h2>
+<table>
+<thead>
+<tr>
+<th>格式</th>
+<th>预处理方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.md</code></td>
+<td>直接读取</td>
+</tr>
+<tr>
+<td><code>.pdf</code></td>
+<td>Claude Code 原生读取（分页支持）</td>
+</tr>
+<tr>
+<td><code>.doc</code> / <code>.docx</code></td>
+<td>Claude Code 原生读取</td>
+</tr>
+<tr>
+<td><code>.ppt</code> / <code>.pptx</code></td>
+<td>复用 anytomd 转为 MD</td>
+</tr>
+<tr>
+<td>其他格式</td>
+<td>复用 anytomd 转为 MD</td>
+</tr>
+</tbody>
+</table>
+<h2 id="步-prompt-流程">3 步 Prompt 流程</h2>
+<p>传统总结是”一次生成就结束”，信息遗漏和编造都无法修正。docsummer 采用
+3 步迭代流程：</p>
+<h3 id="步骤-1draft-生成初稿">步骤 1：DRAFT — 生成初稿</h3>
+<p>基于文档内容，按用户指定的精度级别生成结构化初稿。初稿允许信息稀疏——这是
+Chain-of-Density 的起点，不是终点。</p>
+<p>短文档（≤8000字）单次生成；长文档（&gt;8000字）自动切换分层模式：全局扫描
+→ 分块精读 → 整合。</p>
+<h3 id="步骤-2density-密度迭代">步骤 2：DENSITY — 密度迭代</h3>
+<p>对比初稿与原文，识别”缺失的关键实体”，在同等长度内融入。关键实体的定义来自
+CoD 论文：</p>
+<ul>
+<li><strong>Relevant</strong>：与文档核心论点直接相关</li>
+<li><strong>Specific</strong>：具体的数据、名称、日期、结论（不是泛泛描述）</li>
+<li><strong>Novel</strong>：当前总结中未出现的</li>
+<li><strong>Faithful</strong>：原文中确实存在的（不是推断的）</li>
+</ul>
+<p>每轮迭代用具体信息替换模糊描述，而非追加新段落。重复 2-3
+轮直到无重要缺失实体。</p>
+<h3 id="步骤-3verify-事实验证">步骤 3：VERIFY — 事实验证</h3>
+<p>从密度增强版中提取所有关键声明，回到原文逐条核实。每个声明被分类为：</p>
+<table>
+<thead>
+<tr>
+<th>验证结果</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>VERIFIED</td>
+<td>原文明确支持 → 保留</td>
+</tr>
+<tr>
+<td>PARTIALLY_VERIFIED</td>
+<td>原文部分支持 → 修正</td>
+</tr>
+<tr>
+<td>UNVERIFIED</td>
+<td>原文中找不到 → 删除</td>
+</tr>
+<tr>
+<td>CONTRADICTED</td>
+<td>原文内容矛盾 → 修正或删除</td>
+</tr>
+</tbody>
+</table>
+<p>只有通过验证的内容才会出现在最终总结中。</p>
+<h2 id="级精度">4 级精度</h2>
+<table>
+<thead>
+<tr>
+<th>级别</th>
+<th>目标字数</th>
+<th>输出结构</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>brief</strong></td>
+<td>300-500字</td>
+<td>1-2段纯文本</td>
+<td>快速了解文档大意</td>
+</tr>
+<tr>
+<td><strong>medium</strong></td>
+<td>800-1500字</td>
+<td>3-5个标题节</td>
+<td>常规文档总结</td>
+</tr>
+<tr>
+<td><strong>long</strong></td>
+<td>2000-4000字</td>
+<td>两级标题层级</td>
+<td>详细理解文档内容</td>
+</tr>
+<tr>
+<td><strong>deep</strong></td>
+<td>不限</td>
+<td>全局概览→章节详解→数据表→引述</td>
+<td>深度研究/长文档</td>
+</tr>
+</tbody>
+</table>
+<h3 id="deep-级别的输出结构">deep 级别的输出结构</h3>
+<p>deep 不是”更长的总结”，而是分层结构化输出：</p>
+<pre><code>全局概览（文档类型、核心论点、关键方法、主要结论）
+  ↓
+章节详解（每章：核心命题 + 关键论据 + 重要数据）
+  ↓
+关键数据汇总表（数据项 | 数值 | 出处）
+  ↓
+核心引述（原文精确文字 + 出处位置）
+  ↓
+术语表（术语 | 原文 | 释义）</code></pre>
+<h2 id="英文文档处理">英文文档处理</h2>
+<p>自动检测文档语言。英文文档的总结规则：</p>
+<ul>
+<li>输出使用中文</li>
+<li>关键术语保留英文原文，括号附中文释义</li>
+<li>示例：<code>"该模型采用 Transformer（变换器）架构"</code></li>
+<li>专业术语首次出现时附英文，后续使用中文</li>
+</ul>
+<h2 id="反幻觉协议">反幻觉协议</h2>
+<p>6 条硬约束，按优先级排列：</p>
+<ol type="1">
+<li><strong>忠实约束</strong>：所有内容必须源自文档原文，绝不添加原文没有的信息、推断或评价</li>
+<li><strong>精确约束</strong>：数据（数字、比例、日期）必须与原文完全一致，不可近似或替换</li>
+<li><strong>结构约束</strong>：输出结构必须符合指定级别，不自行创造分类框架</li>
+<li><strong>语言约束</strong>：英文文档保留关键术语原文（括号附中文释义）</li>
+<li><strong>长度约束</strong>：宁可精简也不凑字数，目标字数是上限不是下限</li>
+<li><strong>不确定约束</strong>：原文模糊或矛盾处标注
+<code>[原文表述不清]</code>，而非自行解释</li>
+</ol>
+<h2 id="输出格式">输出格式</h2>
+<p>每次总结产出两个文件：</p>
+<ul>
+<li><strong>MD
+文件</strong>：<code>&lt;文件名&gt;-summary.md</code>，方便后续编辑和衔接其他
+skill</li>
+<li><strong>HTML
+文件</strong>：<code>&lt;文件名&gt;-summary.html</code>，浏览器直接打开阅读</li>
+</ul>
+<p>HTML 主题根据精度级别自动选择：</p>
+<table>
+<thead>
+<tr>
+<th>精度级别</th>
+<th>HTML 主题</th>
+<th>风格</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>brief</td>
+<td>reading</td>
+<td>Medium 极简</td>
+</tr>
+<tr>
+<td>medium</td>
+<td>article</td>
+<td>Tufte 风</td>
+</tr>
+<tr>
+<td>long</td>
+<td>article</td>
+<td>Tufte 风</td>
+</tr>
+<tr>
+<td>deep</td>
+<td>interactive</td>
+<td>长文档导航+目录+折叠</td>
+</tr>
+</tbody>
+</table>
+<h2 id="架构设计">架构设计</h2>
+<pre><code>luckyxiang-docsummer/
+├── SKILL.md                        # 触发规则 + 工作流 + prompt 模板
+└── references/
+    ├── prompt-framework.md         # CoD + CoVe 混合框架
+    ├── output-schema.md            # 4 级输出结构规范
+    └── anti-hallucination.md       # 反幻觉协议</code></pre>
+<p>零脚本设计。文件预处理复用 <code>luckyxiang-anytomd</code>，HTML
+输出复用 <code>luckyxiang-mdtohtml</code>。本 skill
+只负责总结逻辑——prompt 工程和工作流编排。</p>
+<h2 id="调用方式">调用方式</h2>
+<pre><code>/docsummer report.pdf
+/docsummer paper.pdf deep
+/docsummer presentation.pptx brief
+/docsummer readme.md long</code></pre>
+<h2 id="技术来源">技术来源</h2>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 28%" />
+<col style="width: 42%" />
+</colgroup>
+<thead>
+<tr>
+<th>技术</th>
+<th>来源</th>
+<th>核心思想</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Chain-of-Density</td>
+<td>Salesforce/MIT, 2023</td>
+<td>迭代识别缺失实体 → 在同等长度内融入，提升信息密度</td>
+</tr>
+<tr>
+<td>Chain-of-Verification</td>
+<td>Meta, 2023</td>
+<td>提取关键声明 → 生成验证问题 → 回原文核实 → 修正</td>
+</tr>
+<tr>
+<td>渐进式分层总结</td>
+<td>原创设计</td>
+<td>长文档：全局扫描 → 分块精读 → 整合，避免跨块信息丢失</td>
+</tr>
+</tbody>
+</table>
+    </article>
+  </main>
+
+
+  <!-- Reading progress + code copy + smooth scroll -->
+  <script>
+    (function () {
+      // Reading progress bar
+      var bar = document.getElementById('reading-progress');
+      if (bar) {
+        var update = function () {
+          var doc = document.documentElement;
+          var scrollTop = doc.scrollTop || document.body.scrollTop;
+          var height = doc.scrollHeight - doc.clientHeight;
+          var pct = height > 0 ? (scrollTop / height) * 100 : 0;
+          bar.style.width = pct + '%';
+        };
+        document.addEventListener('scroll', update, { passive: true });
+        update();
+      }
+
+      // Code copy button (added on hover-capable devices)
+      var codeBlocks = document.querySelectorAll('pre > code');
+      codeBlocks.forEach(function (code) {
+        var pre = code.parentElement;
+        if (pre.querySelector('.copy-btn')) return;
+        var btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Copy code');
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', function () {
+          navigator.clipboard.writeText(code.innerText).then(function () {
+            btn.textContent = 'Copied';
+            setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+          }, function () {
+            btn.textContent = 'Failed';
+          });
+        });
+        pre.appendChild(btn);
+      });
+
+      // Smooth scroll for in-page anchors (TOC)
+      document.querySelectorAll('nav#TOC a[href^="#"]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          var target = document.querySelector(a.getAttribute('href'));
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            history.pushState(null, '', a.getAttribute('href'));
+          }
+        });
+      });
+
+      // Image click-to-expand (lightbox lite)
+      document.querySelectorAll('article img, figure img').forEach(function (img) {
+        img.style.cursor = 'zoom-in';
+        img.addEventListener('click', function () {
+          var overlay = document.createElement('div');
+          overlay.className = 'img-lightbox';
+          var clone = document.createElement('img');
+          clone.src = img.src;
+          overlay.appendChild(clone);
+          overlay.addEventListener('click', function () {
+            overlay.remove();
+            document.body.style.overflow = '';
+          });
+          document.body.style.overflow = 'hidden';
+          document.body.appendChild(overlay);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
